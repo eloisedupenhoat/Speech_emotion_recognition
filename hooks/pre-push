@@ -1,0 +1,15 @@
+#!/bin/sh
+# /hooks/pre-push
+
+# Define name of protected branch
+protected_branch='master'
+
+while read local_ref local_sha remote_ref remote_sha
+do
+    # $remote_ref = distant branch name
+    if [ "$remote_ref" = "refs/heads/$protected_branch" ]; then
+        echo "Push to $protected_branch branch is not allowed!"
+        echo "Please push to a feature branch and create a pull request."
+        exit 1
+    fi
+done

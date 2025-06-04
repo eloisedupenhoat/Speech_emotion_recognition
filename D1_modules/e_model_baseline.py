@@ -1,4 +1,5 @@
 ##### OBJ - MODEL1: initialize, compile, train and evaluate #####
+'''PENSER A SAUVEGARDER LE MODELE + METTRE F1 METRIQUE + REGARDER BALANCING + CORRIGER 9 COLONNES'''
 
 ##### LIBRARIES #####
 import numpy as np
@@ -8,9 +9,13 @@ import os
 from tensorflow import keras
 from keras import Model, Sequential, layers, regularizers, optimizers
 from keras.callbacks import EarlyStopping
+from keras.utils import to_categorical
+from keras.metrics import Precision, Recall
 
-# Import all variables from our params.py
+# Import all variables from our params.py + functions from b_data...
 from params import *
+from b_data import *
+from a_utils import *
 
 
 ###################################################################
@@ -27,19 +32,21 @@ def y_value(dictionnary):
     for key in dictionnary:
         key_emotion = emotion(key)
         y_list.append(key_emotion)
+    y_list = to_categorical(y_list, num_classes=9) # Va de 0 à 8 (ald 1 à 8)
     return np.array(y_list)
 
 ###################################################################
 #########                MODEL DEFINITION                 #########
 ###################################################################
-def initialize_model_baseline(input_shape: tuple) -> Model:
+def initialize_model_baseline() -> Model:
     """Initialize the Neural Network with random weights"""
     model = Sequential()
-    model.add(Input(shape=(10,)))
-    model.add(layers.Dense(50, activation='relu'))
-    model.add(layers.Dense(25, activation='relu'))
-    model.add(layers.Dense(10, activation='relu'))
-    model.add(layers.Dense(4, activation='softmax'))
+    model.add(layers.Input(shape=(64, 64, 3))) # Attention : mettre une variable pour les 64 et le 3
+    model.add(layers.Conv2D(50, kernel_size=(3, 3), activation='relu'))
+    model.add(layers.Conv2D(25, kernel_size=(3, 3), activation='relu'))
+    model.add(layers.Conv2D(10, kernel_size=(3, 3), activation='relu'))
+    model.add(layers.Flatten())
+    model.add(layers.Dense(9, activation='softmax')) # Attention : maj ac le nombre d'émotions
     print("✅ Model initialized")
     return model
 
@@ -48,14 +55,14 @@ def compile_model_baseline(model: Model, learning_rate=0.0005) -> Model:
     optimizer = optimizers.Adam(learning_rate=learning_rate)
     model.compile(loss='categorical_crossentropy',
               optimizer=optimizer,
-              metrics=['accuracy'])
+              metrics=['accuracy','recall', 'precision'])
     print("✅ Model compiled")
     return model
 
 def train_model_baseline(model: Model,
                         X: np.ndarray,
                         y: np.ndarray,
-                        batch_size=BATCH_SIZE,
+                        batch_size=int(BATCH_SIZE),
                         patience=2,
                         validation_data=None, # overrides validation_split
                         validation_split=0.3) -> tuple[Model, dict]:
@@ -68,28 +75,35 @@ def train_model_baseline(model: Model,
                         validation_data=validation_data,
                         validation_split=validation_split,
                         epochs=1,
-                        batch_size=BATCH_SIZE,
+                        batch_size=int(BATCH_SIZE),
                         callbacks=[es],
                         verbose=1)
-    print(f"✅ Model trained on {len(X)} rows with min val MAE: {round(np.min(history.history['val_mae']), 2)}")
+    print(f"✅ Model trained on {len(X)} rows")
+    #print(f"Métriques : {history.history}")
     return model, history
 
 def evaluate_model_baseline(model: Model,X: np.ndarray, y: np.ndarray,
-                            batch_size=BATCH_SIZE) -> tuple[Model, dict]:
+                            batch_size=int(BATCH_SIZE)) -> tuple[Model, dict]:
     """Evaluate trained model performance on the dataset"""
-    metrics = model.evaluate(x=X, y=y, batch_size=BATCH_SIZE,verbose=1,
+    metrics = model.evaluate(x=X, y=y, batch_size=int(BATCH_SIZE),verbose=1,
                              #callbacks=None,
                              return_dict=True)
     loss = metrics["loss"]
-    mae = metrics["mae"]
-    print(f"✅ Model evaluated, MAE: {round(mae, 2)}")
+    #print(metrics)
+    accuracy = metrics["accuracy"]
+    precision = metrics["precision"]
+    recall = metrics["recall"]
+    print(f"✅ Model evaluated, accuracy: {accuracy}, recall: {recall}, precision: {precision}")
     return metrics
 
 if __name__ == '__main__':
 
-    dictionnary=# A COMPLETER
+    dictionnary=load_prepoc_data()
     X = X_value(dictionnary)
     y = y_value(dictionnary)
+    # print(X.shape)
+    # print(y.shape)
+
     model = initialize_model_baseline()
     compile_model_baseline(model)
     model, history = train_model_baseline(model,X,y)

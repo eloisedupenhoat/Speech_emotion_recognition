@@ -1,5 +1,6 @@
 ##### OBJ: functions to import and export data (locally or in gcloud) #####
 
+
 #########################################################################
 #####################       LIBRARIES      ##############################
 #########################################################################
@@ -59,10 +60,12 @@ def load_raw_data(): # Load raw data
             signal, sr = librosa.load(binary, sr=None)
 
             # For each audio file, store the signal and the sampling rate in a raw_data variable
+
             raw_data[blob.name] = {
                 "signal": signal,
                 "sampling_rate": sr
             }
+            
 
     with open(path, 'wb') as handle:
         pickle.dump(raw_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -87,9 +90,11 @@ def load_prepoc_data():
     data = {}
     count = 0
 
+
     for blob in blobs:
         if blob.name.endswith(".jpg"):
             byte_data = blob.download_as_bytes()
+            
 
             # 🔁 Convertir les bytes en image PIL, puis en array numpy, puis en tensor normalisé entre 0 et 1
             img = Image.open(io.BytesIO(byte_data)).convert(COLOR_MODE)
@@ -104,8 +109,6 @@ def load_prepoc_data():
                 break
 
     return data
-
-
 
 
 if __name__ == '__main__':

@@ -1,4 +1,7 @@
+dotenv==0.9.9
+google-cloud-storage==3.1.0
 librosa==0.11.0
+tensorflow==2.16.2
 
 anyio==4.9.0
 argon2-cffi==23.1.0
@@ -63,7 +66,7 @@ nbconvert==7.16.6
 nbformat==5.10.4
 nest-asyncio==1.6.0
 notebook_shim==0.2.4
-numpy==2.2.6
+numpy==1.26.4
 overrides==7.7.0
 packaging==25.0
 pandas==2.2.3

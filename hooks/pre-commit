@@ -1,0 +1,13 @@
+#!/bin/sh
+# /hooks/pre-commit
+
+# Return name of current branch
+branch=$(git rev-parse --abbrev-ref HEAD)
+
+# Compare current branch name to master
+if [ "$branch" = "master" ]; then
+  echo "Direct commits to master branch are not allowed!"
+  echo "Please create a feature branch and submit a pull request."
+  # Exit the script
+  exit 1
+fi

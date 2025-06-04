@@ -16,4 +16,6 @@ PORT = os.environ.get("PORT")
 GAR_IMAGE = os.environ.get("GAR_IMAGE")
 GAR_MEMORY = os.environ.get("GAR_MEMORY")
 
+BUCKET_NAME = os.environ.get("BUCKET_NAME")
+
 ##################  CONSTANTS  #####################

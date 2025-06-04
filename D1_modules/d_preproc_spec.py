@@ -2,15 +2,8 @@
 #####      2. Feature engineering                       #####
 
 ########## LIBRARIES ##########
+import numpy as np
 import pandas as pd
-
-
-####### .WAV CONVERSION #######
-def convert_to_spectrogram():
-    pass
-
-def convert_to_mfcc():
-    pass
 
 
 ##### FEATURE ENGINEERING #####
@@ -22,6 +15,13 @@ def csv_feature_engineering():
     pass
 
 def remove_silence():
+    pass
+
+####### .WAV CONVERSION #######
+def convert_to_spectrogram():
+    pass
+
+def convert_to_mfcc():
     pass
 
 if __name__ == '__main__':

@@ -60,16 +60,10 @@ def load_prepoc_data(DATA_PREPROC): # pour load un dataset d'image
 
     return images
 
-
-
-
-
-def local_upload():
+def download():
     pass
 
-
-
-def gcloud_upload():
+def upload():
     pass
 
 if __name__ == '__main__': #

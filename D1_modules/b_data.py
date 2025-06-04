@@ -1,73 +1,118 @@
 ##### OBJ: functions to import and export data (locally or in gcloud) #####
 
-##### LIBRARIES #####
+
+#########################################################################
+#####################       LIBRARIES      ##############################
+#########################################################################
+
 import pandas as pd
 from io import BytesIO
 from google.cloud import storage
 import librosa
 import os
 from params import *
+from PIL import Image
+import io
+import tensorflow as tf
+import pickle
 
-##### RAW DATA #####
-def load_raw_data(): #fonction pour chargé la donné brut
+#########################################################################
+######################       RAW DATA      ##############################
+#########################################################################
 
-    PREFIX = "Raw/"  # on veut tout ce qui est dans Raw
+## Fonction pour chargé la donné brut ##
+def load_raw_data(): # Load raw data
 
-    # Connexion à GCS
+    # Check if file already exists
+    path = 'load_raw_data.pkl'
+    if os.path.isfile(path):
+        with open('filename.pickle', 'rb') as handle:
+            raw_data = pickle.load(handle)
+
+        return raw_data
+
+    # Within the bucket, this is the folder we will be working on
+    # We take all the data from Raw/
+    PREFIX = "Raw/"
+
+    # Connecting too Google Cloud Storage
+    # Creates a client object to interact with GCS
     client = storage.Client()
+
+    # The list of files (blobs) inside the bucket
+    # Stores those files inside a variable blobs
     blobs = client.list_blobs(BUCKET_NAME, prefix=PREFIX)
 
-    # Dictionnaire pour stocker les fichiers audio
+    # Initialize a raw_data dictionary
     raw_data = {}
 
-    # Itération sur tous les fichiers .wav
+    # Iterate through each file i(blob) nside the bucket
+    print("Starting for loop")
     for blob in blobs:
         if blob.name.endswith(".wav"):
-            # “Téléchargement” en bytes du fichier
+            print(f"Downloading file: {blob.name}")
+            # Download each audio file
             bytes = blob.download_as_bytes(raw_download=True)
             binary = BytesIO(bytes)
-            # Lecture de l’audio
+
+            # Load each audio file with librosa
+            # Signal is a NumPy array with the audio data in waveform format
             signal, sr = librosa.load(binary, sr=None)
-            # Stockage en mémoire
+
+            # For each audio file, store the signal and the sampling rate in a raw_data variable
+
             raw_data[blob.name] = {
                 "signal": signal,
                 "sampling_rate": sr
             }
-            print(f"{blob.name} → {len(signal)} échantillons à {sr} Hz")
-    print(f"\n:white_check_mark: {len(raw_data)} fichiers audio chargés dans `raw_data`.")
+            
+
+    with open(path, 'wb') as handle:
+        pickle.dump(raw_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     return raw_data
 
-##### PREPOCESS DATA #####
+## Fonction pour uploadé la donné préprocessé ##
+def gcloud_upload():
+    pass
 
-def load_prepoc_data(DATA_PREPROC): # pour load un dataset d'image
+#########################################################################
+#####################     PREPOCESS DATA    #############################
+#########################################################################
 
-    # Crée un client GCS
-    client = storage.Client.from_service_account_json("chemin/vers/credentials.json")
+## Fonction pour charger la donnée préprocessé ##
+def load_prepoc_data():
+
+    client = storage.Client()
     bucket = client.bucket(BUCKET_NAME)
-
-    # Liste les blobs dans le dossier
     blobs = bucket.list_blobs(prefix=DATA_PREPROC)
 
-    # Stocke les images en mémoire
-    images = {}
+    data = {}
+    count = 0
+
 
     for blob in blobs:
         if blob.name.endswith(".jpg"):
             byte_data = blob.download_as_bytes()
-            images[blob.name] = byte_data
+            
+
+            # 🔁 Convertir les bytes en image PIL, puis en array numpy, puis en tensor normalisé entre 0 et 1
+            img = Image.open(io.BytesIO(byte_data)).convert(COLOR_MODE)
+            img_array = np.array(img)
+            img_tensor = tf.convert_to_tensor(img_array / 255.0, dtype=tf.float32)  #
+
+            data[blob.name] = img_tensor
+            count += 1
             print(f"Chargé en mémoire : {blob.name}")
 
-    return images
+            if count >= SAMPLE_SIZE:
+                break
 
-def download():
-    pass
+    return data
 
-def upload():
-    pass
 
-if __name__ == '__main__': #
+if __name__ == '__main__':
 
-    row_data = load_raw_data()
-    print(row_data)
-    print(len(row_data))
+    images = load_prepoc_data()
+    print(images)
+    print(len(images))

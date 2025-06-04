@@ -17,5 +17,8 @@ GAR_IMAGE = os.environ.get("GAR_IMAGE")
 GAR_MEMORY = os.environ.get("GAR_MEMORY")
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME")
+DATA_PREPROC = os.environ.get("DATA_PREPROC")
+COLOR_MODE = os.environ.get("COLOR_MODE")
+SAMPLE_SIZE = int(os.environ.get("SAMPLE_SIZE"))
 
 ##################  CONSTANTS  #####################

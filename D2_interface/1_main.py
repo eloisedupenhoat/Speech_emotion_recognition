@@ -1,7 +1,10 @@
 ##### Xxx #####
 
+########## LIBRARIES ##########
+import numpy as np
+import pandas as pd
 
-def preprocess():
+def preprocess(data):
     pass
 
 def train():

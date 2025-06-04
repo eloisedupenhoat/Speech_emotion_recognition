@@ -3,17 +3,10 @@
 ##### LIBRARIES #####
 import pandas as pd
 
-
-def local_download():
+def download():
     pass
 
-def local_upload():
-    pass
-
-def gcloud_download():
-    pass
-
-def gcloud_upload():
+def upload():
     pass
 
 if __name__ == '__main__':

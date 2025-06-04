@@ -12,6 +12,26 @@ from keras.callbacks import EarlyStopping
 # Import all variables from our params.py
 from params import *
 
+
+###################################################################
+#########              DEFINITION OF X AND y              #########
+###################################################################
+def X_value(dictionnary):
+    X_list = []
+    for value in dictionnary.values():
+        X_list.append(value)
+    return np.array(X_list)
+
+def y_value(dictionnary):
+    y_list = []
+    for key in dictionnary:
+        key_emotion = emotion(key)
+        y_list.append(key_emotion)
+    return np.array(y_list)
+
+###################################################################
+#########                MODEL DEFINITION                 #########
+###################################################################
 def initialize_model_baseline(input_shape: tuple) -> Model:
     """Initialize the Neural Network with random weights"""
     model = Sequential()
@@ -67,8 +87,9 @@ def evaluate_model_baseline(model: Model,X: np.ndarray, y: np.ndarray,
 
 if __name__ == '__main__':
 
-    X='image'
-    y='numero_extrait_du_titre'
+    dictionnary=# A COMPLETER
+    X = X_value(dictionnary)
+    y = y_value(dictionnary)
     model = initialize_model_baseline()
     compile_model_baseline(model)
     model, history = train_model_baseline(model,X,y)

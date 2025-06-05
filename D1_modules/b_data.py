@@ -15,6 +15,7 @@ from PIL import Image
 import io
 import tensorflow as tf
 import pickle
+import random
 
 #########################################################################
 ######################       RAW DATA      ##############################
@@ -65,7 +66,7 @@ def load_raw_data(): # Load raw data
                 "signal": signal,
                 "sampling_rate": sr
             }
-            
+
 
     with open(path, 'wb') as handle:
         pickle.dump(raw_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -82,37 +83,32 @@ def gcloud_upload():
 
 ## Fonction pour charger la donnée préprocessé ##
 def load_prepoc_data():
-
     client = storage.Client()
     bucket = client.bucket(BUCKET_NAME)
     blobs = bucket.list_blobs(prefix=DATA_PREPROC)
 
+    # Étape 1 — filtrer uniquement les fichiers .jpg
+    jpg_blobs = [blob for blob in blobs if blob.name.endswith(".jpg")]
+
+    # Étape 2 — tirage aléatoire
+    selected_blobs = random.sample(jpg_blobs, min(SAMPLE_SIZE, len(jpg_blobs)))
+
     data = {}
-    count = 0
 
+    # Étape 3 — traitement des fichiers sélectionnés
+    for blob in selected_blobs:
+        byte_data = blob.download_as_bytes()
+        img = Image.open(io.BytesIO(byte_data)).convert(COLOR_MODE)
+        img_array = np.array(img)
+        img_tensor = tf.convert_to_tensor(img_array / 255.0, dtype=tf.float32)
+        data[blob.name] = img_tensor
 
-    for blob in blobs:
-        if blob.name.endswith(".jpg"):
-            byte_data = blob.download_as_bytes()
-            
-
-            # 🔁 Convertir les bytes en image PIL, puis en array numpy, puis en tensor normalisé entre 0 et 1
-            img = Image.open(io.BytesIO(byte_data)).convert(COLOR_MODE)
-            img_array = np.array(img)
-            img_tensor = tf.convert_to_tensor(img_array / 255.0, dtype=tf.float32)  #
-
-            data[blob.name] = img_tensor
-            count += 1
-            print(f"Chargé en mémoire : {blob.name}")
-
-            if count >= SAMPLE_SIZE:
-                break
+    print(f"{SAMPLE_SIZE} images chargées")
 
     return data
 
 
 if __name__ == '__main__':
 
-    images = load_prepoc_data()
-    print(images)
-    print(len(images))
+    load_prepoc_data()
+    print("done?")

@@ -9,6 +9,7 @@ notebooks/
 *.zip
 *.vscode
 *.sqlite
+*.pkl
 
 # Files
 .python-version

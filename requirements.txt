@@ -2,6 +2,14 @@ dotenv==0.9.9
 google-cloud-storage==3.1.0
 librosa==0.11.0
 tensorflow==2.16.2
+# API
+python-multipart==0.0.20
+fastapi==0.115.12       # API framework
+pytz==2025.2            # time zone management
+uvicorn==0.34.3         # web server
+# tests
+httpx==0.28.1           # HTTP client
+pytest-asyncio==1.0.0   # asynchronous I/O support for pytest
 
 anyio==4.9.0
 argon2-cffi==23.1.0

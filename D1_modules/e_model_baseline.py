@@ -1,5 +1,4 @@
 ##### OBJ - MODEL1: initialize, compile, train and evaluate #####
-'''PENSER A SAUVEGARDER LE MODELE + METTRE F1 METRIQUE + REGARDER BALANCING + CORRIGER 9 COLONNES'''
 
 ##### LIBRARIES #####
 import numpy as np
@@ -16,8 +15,8 @@ from keras.metrics import Precision, Recall
 
 # Import all variables from our params.py + functions from b_data...
 from params import *
-from b_data import *
-from a_utils import *
+from D1_modules.b_data import * # Garder l'entièreté du chemin relatif pr pvr exécuter l'onglet d_api
+from D1_modules.a_utils import * # Idem
 
 
 ###################################################################

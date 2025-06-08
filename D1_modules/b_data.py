@@ -16,6 +16,7 @@ import io
 import tensorflow as tf
 import pickle
 import random
+from tensorflow import keras
 
 #########################################################################
 ######################       RAW DATA      ##############################
@@ -106,6 +107,30 @@ def load_prepoc_data():
     print(f"{SAMPLE_SIZE} images chargées")
 
     return data
+
+
+#########################################################################
+###########         UPLOAD MODELS IN GCP / LOAD MODEL        ############
+#########################################################################
+
+def upload_model_in_GCP(model):
+    client = storage.Client()
+    output_path = f"models/{model}"
+    bucket = client.bucket(BUCKET_NAME)
+    model_blob = bucket.blob(output_path)
+    model_blob.upload_from_filename(f"../{output_path}")
+
+def load_model(model):
+    client = storage.Client()
+    bucket = client.bucket(BUCKET_NAME)
+    output_path = f"models/{model}"
+    model_blob = bucket.blob(output_path)
+
+    model_blob.download_to_filename(output_path)
+    model = keras.models.load_model(output_path)
+
+    return model
+
 
 
 if __name__ == '__main__':

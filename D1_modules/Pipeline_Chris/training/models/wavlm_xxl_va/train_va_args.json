@@ -1,0 +1,15 @@
+{
+  "specaug": true,
+  "data_csv": "data/va_meta.csv",
+  "wav_root": "data/wavs",
+  "init_ckpt": "facebook/wavlm-xxl",
+  "output_dir": "models/wavlm_xxl_va",
+  "segment_seconds": 5.0,
+  "batch_size": 3,
+  "epochs": 8,
+  "lr": 2e-05,
+  "freeze_layers": 0.5,
+  "lambda_mae": 0.3,
+  "use_lora": true,
+  "log_steps": 25
+}

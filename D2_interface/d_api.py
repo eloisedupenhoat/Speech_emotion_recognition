@@ -1,21 +1,30 @@
 import pandas as pd
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI, UploadFile, File, Form
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import sys
 import os
+import librosa
 from tensorflow import keras # EXPLIQUER
 from keras import Model, Sequential # EXPLIQUER
+from keras.utils import to_categorical
 from io import BytesIO
 from google.cloud import storage
+import io
+from io import BytesIO
+
+# J'indique que l'on travaille sur le dossier source du dossier dans lequel on se trouve
+sys.path.append(os.path.abspath(os.path.join(os.getcwd(), "..")))
 
 from D1_modules.b_data import load_model
 from D1_modules.a_utils import *
 from D1_modules.d_preproc_spec import *
-from D1_modules.e_model_baseline import X_value
 
-# J'indique que l'on travaille sur le dossier source du dossier dans lequel on se trouve
-sys.path.append(os.path.abspath(os.path.join(os.getcwd(), "..")))
+'''
+DEPUIS MISE A JOUR : IMPOSSIBLE DE TELECHARGER UN .WAV DEPUIS FAST API !!!!!
+TBD : mettre à jour le modèle que l'API doit aller chercher sur gcp
+Mettre à jour le RGB and co
+'''
 
 ###########################################################################
 ##########                       PREPARATION                     ##########
@@ -41,7 +50,7 @@ app.add_middleware(
 
 '''
 Sur le terminal : se positionner dans speech_emotion_recognition.
-Puis, exécuter : uvicorn D2_interface.d_api.api.fast:app --reload
+Puis, exécuter : uvicorn D2_interface.d_api:app --reload
 Pourquoi le faire mainteant ? Car le modèle prend du temps à charger et
 qu'on veut faire une démo en live (dc éviter d'attendre que le modèle charge
 en public)
@@ -61,7 +70,11 @@ Ou encore plus facile : http://127.0.0.1:8000/docs (avec http://127.0.0.1:8000 l
 '''
 
 @app.post('/predict/')
-async def predict(my_file: UploadFile):
+async def predict(my_file: UploadFile = File(...)):
+
+    length = 64
+    width = 64
+    channel = "RGB"
 
     # Upload file
     filename = my_file.filename
@@ -71,14 +84,25 @@ async def predict(my_file: UploadFile):
     file = "temp.wav"
 
     # Data preprocessing
-    X_pred = X_value(file) # Bug ici
-    '''
-    File "/home/eloisedupenhoat/code/eloisedupenhoat/Speech_emotion_recognition/D1_modules/e_model_baseline.py", line 26, in X_value
-    for value in dictionnary.values():
-    AttributeError: 'str' object has no attribute 'values'
-    '''
-    X_pred_processed = convert_to_spectogram_images(X_pred) # Changer et mettre le bon nom de fonction
-    y_pred = app.state.model.predict(X_pred_processed)
-    emotion_ref = float(y_pred[0][0]) # Voir si je récupère bien ce que je veux
-    emotion = decodeur_emotion(emotion_ref)
-    return {'Test':emotion_ref,'Your emotion is':emotion}
+    signal, sr = librosa.load(file, sr=None)
+    signal = scale_waveform_data(signal)
+    signal = remove_silence(signal)
+    spectogram = compute_spectogram(signal, sr)
+    buf = convert_to_image(spectogram)
+    image_in_byte = resize_image(buf, length, width, channel)
+    img = Image.open(image_in_byte).convert(COLOR_MODE)
+    img_array = np.array(img)
+
+    # X and y
+    X_true = np.expand_dims(img_array, axis=0)
+    emotion_code = emotion(my_file.filename)
+    y_true = to_categorical([emotion_code - 1], num_classes=8)
+    y_pred = app.state.model.predict(X_true)
+
+    # Answer
+    max_indices = np.argmax(y_pred, axis=1)
+    emotion_code_pred = max_indices[0] + 1
+    emotion_pred_written = decodeur_emotion(emotion_code_pred)
+    emotion_true_written = decodeur_emotion(emotion_code)
+
+    return f"Selon le modèle, l'émotion est : {emotion_pred_written}, tandis que l'émotion réelle est : {emotion_true_written}."

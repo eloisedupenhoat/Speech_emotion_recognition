@@ -14,8 +14,8 @@ from keras.metrics import Precision, Recall
 
 # Import all variables from our params.py + functions from b_data...
 from params import *
-from b_data import *
-from a_utils import *
+from D1_modules.b_data import *
+from D1_modules.a_utils import *
 
 
 ###################################################################
@@ -30,9 +30,9 @@ def X_value(dictionnary):
 def y_value(dictionnary):
     y_list = []
     for key in dictionnary:
-        key_emotion = emotion(key)
+        key_emotion = emotion(key) - 1
         y_list.append(key_emotion)
-    y_list = to_categorical(y_list, num_classes=9) # Va de 0 à 8 (ald 1 à 8)
+    y_list = to_categorical(y_list, num_classes=8)
     return np.array(y_list)
 
 ###################################################################

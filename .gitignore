@@ -33,3 +33,4 @@ __pycache__
 *.npy
 *.h5
 *.db
+D1_modules/Pipeline_Chris/credentials/gcp_key.json

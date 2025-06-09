@@ -1,21 +1,22 @@
 ##### OBJ - MODEL1: initialize, compile, train and evaluate #####
-'''PENSER A SAUVEGARDER LE MODELE + METTRE F1 METRIQUE + REGARDER BALANCING + CORRIGER 9 COLONNES'''
 
 ##### LIBRARIES #####
 import numpy as np
 import pandas as pd
 import os
+from pathlib import Path
 
 from tensorflow import keras
 from keras import Model, Sequential, layers, regularizers, optimizers
 from keras.callbacks import EarlyStopping
 from keras.utils import to_categorical
+from keras.models import load_model, save_model
 from keras.metrics import Precision, Recall
 
 # Import all variables from our params.py + functions from b_data...
 from params import *
-from D1_modules.b_data import *
-from D1_modules.a_utils import *
+from D1_modules.b_data import * # Garder l'entièreté du chemin relatif pr pvr exécuter l'onglet d_api
+from D1_modules.a_utils import * # Idem
 
 
 ###################################################################
@@ -41,12 +42,12 @@ def y_value(dictionnary):
 def initialize_model_baseline() -> Model:
     """Initialize the Neural Network with random weights"""
     model = Sequential()
-    model.add(layers.Input(shape=(64, 64, 3))) # Attention : mettre une variable pour les 64 et le 3
+    model.add(layers.Input(shape=X.shape[1:]))
     model.add(layers.Conv2D(50, kernel_size=(3, 3), activation='relu'))
     model.add(layers.Conv2D(25, kernel_size=(3, 3), activation='relu'))
     model.add(layers.Conv2D(10, kernel_size=(3, 3), activation='relu'))
     model.add(layers.Flatten())
-    model.add(layers.Dense(9, activation='softmax')) # Attention : maj ac le nombre d'émotions
+    model.add(layers.Dense(8, activation='softmax'))
     print("✅ Model initialized")
     return model
 
@@ -74,7 +75,7 @@ def train_model_baseline(model: Model,
     history = model.fit(X,y,
                         validation_data=validation_data,
                         validation_split=validation_split,
-                        epochs=1,
+                        epochs=50,
                         batch_size=int(BATCH_SIZE),
                         callbacks=[es],
                         verbose=1)
@@ -101,10 +102,14 @@ if __name__ == '__main__':
     dictionnary=load_prepoc_data()
     X = X_value(dictionnary)
     y = y_value(dictionnary)
-    # print(X.shape)
-    # print(y.shape)
+    print(f"Shape X: {X.shape}")
+    print(f"Shape y: {y.shape}")
 
-    model = initialize_model_baseline()
-    compile_model_baseline(model)
-    model, history = train_model_baseline(model,X,y)
-    metrics = evaluate_model_baseline(model,X, y)
+    #model = initialize_model_baseline()
+    #model = compile_model_baseline(model)
+    #model, history = train_model_baseline(model,X,y)
+    #metrics = evaluate_model_baseline(model,X, y)
+    #model_name = "Spec-64p-RGB-60db_cnn-lr0_0005-bs32-pat2-vs30-50ep_v2"
+    #Path("models").mkdir(parents=True, exist_ok=True)
+    #model.save(f"models/{model_name}.keras")
+    #upload_model_in_GCP(model_name)

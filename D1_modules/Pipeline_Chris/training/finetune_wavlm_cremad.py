@@ -27,8 +27,7 @@ from transformers import (
 GCP_PROJECT   = "speech-emotion-1976"
 BUCKET_AUDIO  = "speech-emotion-bucket/Raw/crema-d/AudioWAV"
 CSV_PATH      = Path(
-    "/Users/greenwaymusic/code/eloisedupenhoat/"
-    "Speech_emotion_recognition/D1_modules/Pipeline_Chris/data/cremad_labels.csv"
+    "D1_modules/Pipeline_Chris/data/cremad_labels.csv"
 )
 OUTPUT_DIR    = Path("./wavlm_cremad_finetuned")
 SAMPLE_RATE   = 16_000
@@ -39,8 +38,9 @@ LR            = 2e-5
 # ===============================
 
 # ---- GCS filesystem (une seule instance) ----
-GCS_TOKEN = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
-fs = gcsfs.GCSFileSystem(project=GCP_PROJECT, token=GCS_TOKEN)
+# GCS_TOKEN = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+# fs = gcsfs.GCSFileSystem(project=GCP_PROJECT, token=GCS_TOKEN)
+fs = gcsfs.GCSFileSystem(project=GCP_PROJECT)
 
 # ---- Dataset brut ----
 class CremadGCPSpeech(Dataset):

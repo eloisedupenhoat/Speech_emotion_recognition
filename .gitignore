@@ -30,3 +30,6 @@ __pycache__
 *.gz
 *PKG-INFO
 *.egg-info
+*.npy
+*.h5
+*.db

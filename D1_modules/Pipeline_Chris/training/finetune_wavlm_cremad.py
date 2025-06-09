@@ -1,81 +1,102 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Fine-tune WavLM-base sur CREMA-D stocké dans un bucket GCS.
+
+Prérequis :
+  export GOOGLE_APPLICATION_CREDENTIALS=/chemin/vers/ta_clé.json
+"""
+
 import os
-os.environ["TRANSFORMERS_NO_TF"] = "1"
+from pathlib import Path
+
 import gcsfs
+import pandas as pd
 import torch
 import torchaudio
-import pandas as pd
-from torch.utils.data import Dataset, DataLoader
-from transformers import WavLMForSequenceClassification, WavLMFeatureExtractor, TrainingArguments, Trainer
-
-
-
-
-GCP_PROJECT = 'Speech-Emotion-1976'
-BUCKET_AUDIO = 'speech-emotion-bucket/Raw/crema-d/AudioWAV'
-CSV_PATH = '/Users/greenwaymusic/code/eloisedupenhoat/Speech_emotion_recognition/D1_modules/Pipeline_Chris/data/cremad_labels.csv'
-OUTPUT_DIR = './wavlm_cremad_finetuned'
-NUM_LABELS = 6  # Neutral, Happy, Sad, Angry, Fearful, Disgust
-SAMPLE_RATE = 16000
-
-# 1. Dataset
-class CremadGCPDataset(Dataset):
-    def __init__(self, csv_path, bucket_path, project, sample_rate=16000):
-        self.data = pd.read_csv(csv_path)
-        self.bucket = bucket_path
-        self.fs = gcsfs.GCSFileSystem(project=project)
-        self.sample_rate = sample_rate
-    def __len__(self):
-        return len(self.data)
-    def __getitem__(self, idx):
-        row = self.data.iloc[idx]
-        file_path = f'{self.bucket}/{row.file}'
-        with self.fs.open(file_path, 'rb') as f:
-            wav, sr = torchaudio.load(f)
-        if sr != self.sample_rate:
-            wav = torchaudio.functional.resample(wav, sr, self.sample_rate)
-        wav = wav.mean(dim=0)  # mono
-        return {'input_values': wav, 'labels': int(row.label)}
-
-# 2. Collate fn
-def collate_fn(batch):
-    input_values = [item['input_values'] for item in batch]
-    labels = torch.tensor([item['labels'] for item in batch], dtype=torch.long)
-    # Pad sequences
-    input_values = torch.nn.utils.rnn.pad_sequence(input_values, batch_first=True)
-    attention_mask = (input_values != 0).int()
-    return {'input_values': input_values, 'attention_mask': attention_mask, 'labels': labels}
-
-# 3. Modèle + Feature Extractor
-feature_extractor = WavLMFeatureExtractor.from_pretrained('microsoft/wavlm-base')
-model = WavLMForSequenceClassification.from_pretrained(
-    'microsoft/wavlm-base',
-    num_labels=NUM_LABELS,
-    problem_type="single_label_classification"
+from torch.utils.data import Dataset
+from transformers import (
+    AutoFeatureExtractor,
+    WavLMForSequenceClassification,
+    TrainingArguments,
+    Trainer,
 )
 
-# 4. Adapter dataset pour Huggingface Trainer
-class CremadHFDataset(Dataset):
-    def __init__(self, cremaddataset):
-        self.ds = cremaddataset
+# ========= PARAMÈTRES =========
+GCP_PROJECT   = "speech-emotion-1976"
+BUCKET_AUDIO  = "speech-emotion-bucket/Raw/crema-d/AudioWAV"
+CSV_PATH      = Path(
+    "/Users/greenwaymusic/code/eloisedupenhoat/"
+    "Speech_emotion_recognition/D1_modules/Pipeline_Chris/data/cremad_labels.csv"
+)
+OUTPUT_DIR    = Path("./wavlm_cremad_finetuned")
+SAMPLE_RATE   = 16_000
+NUM_LABELS    = 6
+EPOCHS        = 5
+BATCH_SIZE    = 4
+LR            = 2e-5
+# ===============================
+
+# ---- GCS filesystem (une seule instance) ----
+GCS_TOKEN = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+fs = gcsfs.GCSFileSystem(project=GCP_PROJECT, token=GCS_TOKEN)
+
+# ---- Dataset brut ----
+class CremadGCPSpeech(Dataset):
+    def __init__(self, csv_path: Path, bucket: str, sample_rate: int = 16000):
+        self.meta        = pd.read_csv(csv_path)
+        self.bucket      = bucket.rstrip("/")
+        self.sample_rate = sample_rate
+
     def __len__(self):
-        return len(self.ds)
+        return len(self.meta)
+
     def __getitem__(self, idx):
-        d = self.ds[idx]
-        # Normalise [-1,1]
-        inputs = feature_extractor(d['input_values'].numpy(), sampling_rate=SAMPLE_RATE, return_tensors="pt", padding=True)
-        out = {k: v.squeeze(0) for k, v in inputs.items()}
-        out['labels'] = d['labels']
-        return out
+        row      = self.meta.iloc[idx]
+        gcs_uri  = f"{self.bucket}/{row.file}"
+        label    = int(row.label)
 
-train_dataset = CremadGCPDataset(CSV_PATH, BUCKET_AUDIO, GCP_PROJECT)
-hf_dataset = CremadHFDataset(train_dataset)
+        with fs.open(gcs_uri, "rb") as f:
+            wav, sr = torchaudio.load(f)
 
-# 5. Training arguments (à ajuster selon ta VRAM !)
+        if sr != self.sample_rate:
+            wav = torchaudio.functional.resample(wav, sr, self.sample_rate)
+
+        wav = wav.mean(dim=0)                   # mono (Tensor 1-D)
+        return {"waveform": wav, "label": label}
+
+# ---- Collate : convertit en numpy AVANT l’extractor ----
+feature_extractor = AutoFeatureExtractor.from_pretrained("microsoft/wavlm-base")
+
+def collate_fn(batch):
+    wavs   = [item["waveform"].numpy() for item in batch]  # <- conversion
+    labels = torch.tensor([item["label"] for item in batch], dtype=torch.long)
+
+    feats = feature_extractor(
+        wavs,
+        sampling_rate=SAMPLE_RATE,
+        return_tensors="pt",
+        padding=True,
+    )
+    feats["labels"] = labels
+    return feats
+
+# ---- Modèle ----
+model = WavLMForSequenceClassification.from_pretrained(
+    "microsoft/wavlm-base",
+    num_labels=NUM_LABELS,
+    problem_type="single_label_classification",
+)
+
+# ---- Trainer ----
+train_ds = CremadGCPSpeech(CSV_PATH, BUCKET_AUDIO, SAMPLE_RATE)
+
 training_args = TrainingArguments(
-    output_dir=OUTPUT_DIR,
-    num_train_epochs=5,
-    per_device_train_batch_size=4,  # Augmente/diminue selon ta VRAM
-    learning_rate=2e-5,
+    output_dir=str(OUTPUT_DIR),
+    num_train_epochs=EPOCHS,
+    per_device_train_batch_size=BATCH_SIZE,
+    learning_rate=LR,
     save_strategy="epoch",
     evaluation_strategy="no",
     logging_steps=20,
@@ -87,12 +108,14 @@ training_args = TrainingArguments(
 trainer = Trainer(
     model=model,
     args=training_args,
-    train_dataset=hf_dataset,
-    tokenizer=feature_extractor,
+    train_dataset=train_ds,
     data_collator=collate_fn,
 )
 
+# ---- Fine-tuning 🚀 ----
 trainer.train()
+
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 model.save_pretrained(OUTPUT_DIR)
 feature_extractor.save_pretrained(OUTPUT_DIR)
-print(f"Modèle fine-tuné sauvegardé dans {OUTPUT_DIR}")
+print(f"✅ Modèle fine-tuné sauvegardé dans : {OUTPUT_DIR.resolve()}")

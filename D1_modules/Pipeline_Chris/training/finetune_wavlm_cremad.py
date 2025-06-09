@@ -1,10 +1,14 @@
 import os
+os.environ["TRANSFORMERS_NO_TF"] = "1"
 import gcsfs
 import torch
 import torchaudio
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 from transformers import WavLMForSequenceClassification, WavLMFeatureExtractor, TrainingArguments, Trainer
+
+
+
 
 GCP_PROJECT = 'Speech-Emotion-1976'
 BUCKET_AUDIO = 'speech-emotion-bucket/Raw/crema-d/AudioWAV'

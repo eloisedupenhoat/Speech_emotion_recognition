@@ -16,7 +16,7 @@ from collections import defaultdict
 
 ####### WAVEFORM PREPROCESSING #######
 
-def scale_waveform_data(y): # Normalize waveform amplitude betqeen -1 and 1
+def scale_waveform_data(y): # Applies a min max to scale the waveform data between -1 and 1 (amplitude)
     y = y / np.abs(y).max()
     return y
 
@@ -24,24 +24,22 @@ def trim_silence(y): # Removes leading / trailing silence using a decibel thresh
     y, _ = librosa.effects.trim(y)
     return y
 
-def add_noise(y, noise_level=0.005): # Add Gaussian noise to simulate background variability
+def add_noise(y, noise_level=0.005): # Add gaussian noise to simulate background variability (0.005 is the standard)
     noise = np.random.normal(0, noise_level, y.shape)
     return y + noise
 
-def speed_change(y, rate=1.1): # Change playback speed (e.g: 1.1 speeds it up by 10%)
-    try: # If librosa doesn't return an error apply this function
-        return librosa.effects.time_stretch(y, rate)
-    except librosa.util.exceptions.ParameterError: # Else: return the original sound (y)
-        return y
+def speed_change(y, sr, rate=1.1): # Change the speed by resampling
+    # Resample the sampling rate (# data points per second) in order to mimic speed change
+    return librosa.resample(y, orig_sr=sr, target_sr=int(sr * rate))
 
-def pitch_shift(y, sr, n_steps=2): # Shifts pitch (up/down in semitones, e.g: ±2 steps)
+def pitch_shift(y, sr, n_steps=2): # Shifts pitch (up/down in semitones, e.g: ±2 steps) (2 steps is the standard)
     return librosa.effects.pitch_shift(y, sr=sr, n_steps=n_steps)
 
 ####### SPECTOGRAM PREPROCESSING #######
 
 def compute_spectogram(y, sr): # It's a 2d array (rows = frequency ; columns = time ; values = intensity (brightness))
-    S = librosa.feature.melspectrogram(y=y, sr=sr)
-    S_dB = librosa.power_to_db(S, ref=np.max) # Convert the spectogram from raw energy (power) into decibel scale (log scale)
+    S = librosa.feature.melspectrogram(y=y, sr=sr) # Convert waveform data to spectogram
+    S_dB = librosa.power_to_db(S, ref=np.max) # Convert the spectogram from raw energy (power) into decibel scale (log scale) (so that it works for humans)
     return S_dB
 
 ####### SPECTOGRAM IMAGE PREPROCESSING #######
@@ -62,13 +60,13 @@ def convert_to_spectogram_image(S_dB): # Convert the standardized spectogram int
     buf.seek(0) # Close temporary memory (buf)
     return buf # Buf is a memory buffer that stores the spectogram image
 
-def resize_image(buf, lenght, witdh, channel): # Resize image in RGB & using the LANCZOS algorithm
+def resize_image(buf, lenght, width, channel): # Resize image in RGB & using the LANCZOS algorithm
     image = Image.open(buf).convert(f"{channel}")
-    image = image.resize((lenght, witdh), resample=Image.Resampling.LANCZOS)
+    image = image.resize((lenght, width), resample=Image.Resampling.LANCZOS)
     resized_buf = BytesIO() # Save image back to buffer for cloud upload
     image.save(resized_buf, format="JPEG")
     resized_buf.seek(0)
-    return resized_buf # Stores the resized spectogram image
+    return resized_buf # Stores the resized spectogram image in a memory buffer
 
 def upload_image_in_GCP(resized_buf, file, BUCKET_NAME, resolution, color):
     client = storage.Client()
@@ -80,47 +78,81 @@ def upload_image_in_GCP(resized_buf, file, BUCKET_NAME, resolution, color):
 
 ####### FULL PREPROCESSING #######
 
-TRAIN_ACTORS = set(range(1, 22))   # Actors 1–21 → training
-TEST_ACTORS = set(range(22, 25))   # Actors 22–24 → testing
+TRAIN_ACTORS = set(range(1, 21)) # Defines training set (Actors 1–20)
+TEST_ACTORS = set(range(21, 25)) # Defines test set (Actors 21–24)
 
 def convert_to_spectogram_images(raw_data, resolutions, length=64, width=64, channel="L", BUCKET_NAME=BUCKET_NAME, augment=True):
-    # Separate training files
+    # If the actor is part of the train actors set:
+    # Iterates over the filename and the file (waveform signal + sampling rate) for each file in the raw_data dictionnary
+    # And returns a list of tuples (each tuple has the filename and the file)
     training_files = [(filename, file) for filename, file in raw_data.items() if get_actor_id(filename) in TRAIN_ACTORS]
 
-    # Group by emotion
-    emotion_groups = defaultdict(list)
-    for filename, file in training_files:
-        emotion_id = get_emotion_id(filename)
-        emotion_groups[emotion_id].append((filename, file))
+    # Create a dictionary with each filename + file for each emotion (basically groups emotions in a dictionary)
+    emotion_groups = defaultdict(list) # Creates a dictionarry where each key is an emotion ID, and each value is the list of files
+    for filename, file in training_files: # Iterates through each filename and file in the training_files list
+        emotion_id = get_emotion_id(filename) # Extracts the emotion ID for each filename
+        emotion_groups[emotion_id].append((filename, file)) # For each emotion ID within the emotion_groups dictionary, it appends the filename and the file
 
     # Balance emotion 1 to reach 192 files (96 natural + 96 augmented)
-    emotion_1_files = emotion_groups[1][:]
-    random.shuffle(emotion_1_files)
-    base_count = len(emotion_1_files)
-    needed = 96 - (base_count // 2)  # Only need 96 synthetic files in pass 1
-    first_pass_aug_map = {}
+    emotion_1_files = emotion_groups[1][:] # Creates a copy and gets all files that are labeled as emotion 1
+    random.shuffle(emotion_1_files) # Shuffles though each file within emotion 1
 
-    aug_types = ["noise", "speed", "pitch"] * ((needed // 3) + 1)
-    aug_types = aug_types[:needed]
-    random.shuffle(aug_types)
+    # Split 96 files into 3 parts (for data augmentation)
+    noise_files = emotion_1_files[:32]
+    speed_files = emotion_1_files[32:64]
+    pitch_files = emotion_1_files[64:96]
 
-    for (filename, _), aug in zip(emotion_1_files, aug_types):
-        first_pass_aug_map[filename] = aug
+    # Map 1st pass augmentations
+    first_pass_aug_map = {} # Initializes an empty dictionary that will hold the filename and the augmentation applied to it
 
-    # Assign second-pass augmentation types for all training files while avoiding duplicates for emotion 1
+    for filename, _ in noise_files:
+        first_pass_aug_map[filename] = "noise"
+        # Assigns the value "noise" to match the key (file) for all the files where we are going to apply a noise augmenation
+
+    for filename, _ in speed_files:
+        first_pass_aug_map[filename] = "speed"
+        # Assigns the value "speed" to match the key (file) for all the files where we are going to apply a speed augmenation
+
+    for filename, _ in pitch_files:
+        first_pass_aug_map[filename] = "pitch"
+        # Assigns the value "pitch" to match the key (file) for all the files we are going to apply a pitch augmenation
+
+    # Creates a list that includes all files from emotion 1 (that were augmented) as well as the other files (other emotions)
+    # Returns a list of tuples (filename + file)
     second_pass_files = [f for f in training_files if f[0] in first_pass_aug_map or get_emotion_id(f[0]) != 1]
-    random.shuffle(second_pass_files)
-    second_aug_types = ["noise", "speed", "pitch"] * ((len(second_pass_files) // 3) + 1)
-    second_aug_types = second_aug_types[:len(second_pass_files)]
-    second_pass_aug_map = {}
 
-    i = 0
+    # Modifies the list in order to randomly assign one augmenation per random file
+    random.shuffle(second_pass_files)
+    # Number of files we want to augment in the second pass
+    num_files = len(second_pass_files)
+    # Base list of augmentation types to cycle through
+    base_aug_types = ["noise", "speed", "pitch"]
+    # Number of full sets of 3 augmentations we need to cover most of the files + 1
+    num_repeats = (num_files // len(base_aug_types)) + 1
+    # Increases the list to make sure we assign one augmenation per file later on
+    repeated_aug_list = base_aug_types * num_repeats
+
+    # Takes the augmenation type list and trims it to make sure there's no indexing errors.
+    second_aug_types = repeated_aug_list[:num_files]
+
+    second_pass_aug_map = {}
+    # Initialize a new dictionnary that maps the second-pass augmentations for each file
+    i = 0 # Initialize a counter i that tracks the indexes
     for filename, _ in second_pass_files:
+        # Iterates through each file name in the second_pass_files list
         prev = first_pass_aug_map.get(filename)
-        while second_aug_types[i] == prev:
-            i += 1
+        # Checks which files have already been augmented (emotion 1) in the first pass and assigns it to a variable prev
+        try:
+            while second_aug_types[i] == prev:
+                i += 1
+                # If the loop goes through a file that has already been agumented:
+                # It skips that augmentation type (+1) and assigns it another augmentation
+        except IndexError:
+            # If no different augmentation is found, restart from 0
+            i = 0
         second_pass_aug_map[filename] = second_aug_types[i]
-        i += 1
+        # Finally, it assigns an augmentatio type (value) to each key (filename)
+    i += 1
 
     # Loop through all files with an index (idx), so we can selectively apply augmentation
     for idx, (filename, file) in enumerate(raw_data.items()):
@@ -153,7 +185,7 @@ def convert_to_spectogram_images(raw_data, resolutions, length=64, width=64, cha
                 suffix = f"noise_{noise_level}"
             elif aug_type == "speed":
                 rate = round(np.random.uniform(0.9, 1.2), 2)
-                aug_signal = speed_change(aug_signal, rate=rate)
+                aug_signal = speed_change(aug_signal, sr, rate=rate)
                 suffix = f"speed_{rate}"
             elif aug_type == "pitch":
                 n_steps = np.random.choice([-2, -1, 1, 2])
@@ -178,7 +210,7 @@ def convert_to_spectogram_images(raw_data, resolutions, length=64, width=64, cha
                 suffix = f"noise_{noise_level}"
             elif aug_type == "speed":
                 rate = round(np.random.uniform(0.9, 1.2), 2)
-                aug_signal = speed_change(aug_signal, rate=rate)
+                aug_signal = speed_change(aug_signal, sr, rate=rate)
                 suffix = f"speed_{rate}"
             elif aug_type == "pitch":
                 n_steps = np.random.choice([-2, -1, 1, 2])
@@ -196,5 +228,5 @@ def convert_to_spectogram_images(raw_data, resolutions, length=64, width=64, cha
 
 if __name__ == '__main__':
     raw_data = load_raw_data()
-    resolutions = [(64, 64), (128, 64)]
+    resolutions = [(64, 64), (128, 64), (64, 32)]
     convert_to_spectogram_images(raw_data, resolutions=resolutions, augment=True)

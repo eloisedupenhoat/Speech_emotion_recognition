@@ -28,7 +28,7 @@ def load_raw_data(): # Load raw data
     # Check if file already exists
     path = 'load_raw_data.pkl'
     if os.path.isfile(path):
-        with open('filename.pickle', 'rb') as handle:
+        with open(path, 'rb') as handle:
             raw_data = pickle.load(handle)
 
         return raw_data
@@ -83,7 +83,7 @@ def gcloud_upload():
 #########################################################################
 
 ## Fonction pour charger la donnée préprocessé ##
-def load_prepoc_data():
+def load_prepoc_data(color_mode = COLOR_MODE):
     client = storage.Client()
     bucket = client.bucket(BUCKET_NAME)
     blobs = bucket.list_blobs(prefix=DATA_PREPROC)
@@ -99,7 +99,7 @@ def load_prepoc_data():
     # Étape 3 — traitement des fichiers sélectionnés
     for blob in selected_blobs:
         byte_data = blob.download_as_bytes()
-        img = Image.open(io.BytesIO(byte_data)).convert(COLOR_MODE)
+        img = Image.open(io.BytesIO(byte_data)).convert(color_mode)
         img_array = np.array(img)
         img_tensor = tf.convert_to_tensor(img_array / 255.0, dtype=tf.float32)
         data[blob.name] = img_tensor

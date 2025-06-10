@@ -86,9 +86,9 @@ async def predict(my_file: UploadFile = File(...)):
     # Data preprocessing
     signal, sr = librosa.load(file, sr=None)
     signal = scale_waveform_data(signal)
-    signal = remove_silence(signal)
+    signal = trim_silence(signal)
     spectogram = compute_spectogram(signal, sr)
-    buf = convert_to_image(spectogram)
+    buf = convert_to_spectogram_image(spectogram)
     image_in_byte = resize_image(buf, length, width, channel)
     img = Image.open(image_in_byte).convert(COLOR_MODE)
     img_array = np.array(img)
@@ -105,4 +105,7 @@ async def predict(my_file: UploadFile = File(...)):
     emotion_pred_written = decodeur_emotion(emotion_code_pred)
     emotion_true_written = decodeur_emotion(emotion_code)
 
-    return f"Selon le modèle, l'émotion est : {emotion_pred_written}, tandis que l'émotion réelle est : {emotion_true_written}."
+    return {
+    "emotion": emotion_pred_written,
+    "true_emotion": emotion_true_written
+}

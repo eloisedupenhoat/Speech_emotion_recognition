@@ -39,25 +39,25 @@ Le pipeline inclut : prétraitement, extraction de features audio, modélisation
 
 Cloner le repo et installer les dépendances :
 
-git clone https://github.com/ton-user/Speech_emotion_recognition.git
-cd Speech_emotion_recognition'
-pip install -r requirements.txt
+`git clone https://github.com/ton-user/Speech_emotion_recognition.git` 
+`cd Speech_emotion_recognition`
+`pip install -r requirements.txt`
 
 _ _  _
 
 ## 📁 Structure du projet
 
 
-.
-├── D1_modules/         # Traitement, extraction de features, modèles
-├── D2_interface/       # Interface utilisateur (Streamlit)
-├── hooks/              # Pre-commit et outils dev
-├── params.py           # Paramètres globaux du projet
-├── requirements.txt    # Dépendances pour dev
-├── requirements_prod.txt
-├── Dockerfile          # Image Docker pour déploiement
-├── install-hooks.sh    # Script pour activer les hooks Git
-└── README.md           # Ce fichier
+`.`
+`├── D1_modules/         # Traitement, extraction de features, modèles`
+`├── D2_interface/       # Interface utilisateur (Streamlit)`
+`├── hooks/              # Pre-commit et outils dev`
+`├── params.py           # Paramètres globaux du projet`
+`├── requirements.txt    # Dépendances pour dev`
+`├── requirements_prod.txt`
+`├── Dockerfile          # Image Docker pour déploiement`
+`── install-hooks.sh    # Script pour activer les hooks Git`
+`└── README.md           # Ce fichier`
 
 
 

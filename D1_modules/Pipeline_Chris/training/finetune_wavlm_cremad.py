@@ -32,8 +32,8 @@ CSV_PATH      = Path(
 OUTPUT_DIR    = Path("./wavlm_cremad_finetuned")
 SAMPLE_RATE   = 16_000
 NUM_LABELS    = 6
-EPOCHS        = 5
-BATCH_SIZE    = 4
+EPOCHS        = 50
+BATCH_SIZE    = 64
 LR            = 2e-5
 # ===============================
 

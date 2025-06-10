@@ -25,6 +25,15 @@ DEPUIS MISE A JOUR : IMPOSSIBLE DE TELECHARGER UN .WAV DEPUIS FAST API !!!!!
 TBD : mettre à jour le modèle que l'API doit aller chercher sur gcp
 Mettre à jour le RGB and co
 '''
+###########################################################################
+##########         A REMPLIR AVANT LE LANCEMENT DE L'API         ##########
+###########################################################################
+
+model = "Spec-64p-RGB-60db_sample1000_cnn-lr0_0005-bs32-pat2-vs30-50ep.keras"
+# Les length, width, channel doivent ê cohérents ac les inputs du modèle choisi :
+length = 64
+width = 64
+channel = "RGB"
 
 ###########################################################################
 ##########                       PREPARATION                     ##########
@@ -56,7 +65,6 @@ qu'on veut faire une démo en live (dc éviter d'attendre que le modèle charge
 en public)
 '''
 
-model = "Spec-64p-RGB-60db_sample1000_cnn-lr0_0005-bs32-pat2-vs30-50ep.keras"
 app.state.model = load_model(model)
 
 
@@ -72,10 +80,6 @@ Ou encore plus facile : http://127.0.0.1:8000/docs (avec http://127.0.0.1:8000 l
 @app.post('/predict/')
 async def predict(my_file: UploadFile = File(...)):
 
-    length = 64
-    width = 64
-    channel = "RGB"
-
     # Upload file
     filename = my_file.filename
     contents = await my_file.read()
@@ -84,28 +88,39 @@ async def predict(my_file: UploadFile = File(...)):
     file = "temp.wav"
 
     # Data preprocessing
-    signal, sr = librosa.load(file, sr=None)
+    signal, sr = librosa.load(file, sr=None) # None ok car pas de data augmentation ici
     signal = scale_waveform_data(signal)
     signal = trim_silence(signal)
     spectogram = compute_spectogram(signal, sr)
     buf = convert_to_spectogram_image(spectogram)
+
+    # Les length, width, channel doivent ê cohérents ac les inputs du modèle choisi :
+    #length = 64
+    #width = 64
+    #channel = "RGB"
+
     image_in_byte = resize_image(buf, length, width, channel)
-    img = Image.open(image_in_byte).convert(COLOR_MODE)
+    img = Image.open(image_in_byte).convert(channel)
     img_array = np.array(img)
+    if channel == 'L':
+        img_array = np.expand_dims(img_array, axis=2)
 
     # X and y
-    X_true = np.expand_dims(img_array, axis=0)
+    X = np.expand_dims(img_array, axis=0)
     emotion_code = emotion(my_file.filename)
-    y_true = to_categorical([emotion_code - 1], num_classes=8)
-    y_pred = app.state.model.predict(X_true)
+    #y_true = to_categorical([emotion_code - 1], num_classes=8)
+    y_pred = app.state.model.predict(X)
 
     # Answer
     max_indices = np.argmax(y_pred, axis=1)
     emotion_code_pred = max_indices[0] + 1
     emotion_pred_written = decodeur_emotion(emotion_code_pred)
-    emotion_true_written = decodeur_emotion(emotion_code)
+    # emotion_true_written = decodeur_emotion(emotion_code)
 
+    # return {
+    #     "emotion": emotion_pred_written,
+    #     "true_emotion": emotion_true_written
+    # }
     return {
-    "emotion": emotion_pred_written,
-    "true_emotion": emotion_true_written
-}
+        "emotion": emotion_pred_written
+    }

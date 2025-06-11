@@ -33,9 +33,6 @@ def load_raw_data(): # Load raw data
 
         return raw_data
 
-    # Within the bucket, this is the folder we will be working on
-    # We take all the data from Raw/
-    PREFIX = "Raw/"
 
     # Connecting too Google Cloud Storage
     # Creates a client object to interact with GCS
@@ -92,7 +89,7 @@ def load_prepoc_data(color_mode = COLOR_MODE):
     jpg_blobs = [blob for blob in blobs if blob.name.endswith(".jpg")]
 
     # Étape 2 — tirage aléatoire
-    selected_blobs = random.sample(jpg_blobs, min(SAMPLE_SIZE, len(jpg_blobs)))
+    selected_blobs = random.sample(jpg_blobs, min(int(SAMPLE_SIZE), len(jpg_blobs)))
 
     data = {}
 
@@ -122,6 +119,9 @@ def upload_model_in_GCP(model):
 
 def load_model(model):
     client = storage.Client()
+    print("$" * 20)
+    print(BUCKET_NAME)
+    print("$" * 20)
     bucket = client.bucket(BUCKET_NAME)
     output_path = f"models/{model}"
     model_blob = bucket.blob(output_path)

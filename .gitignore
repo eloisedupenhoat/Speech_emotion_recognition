@@ -16,7 +16,7 @@ notebooks/
 models/
 load_raw_data.pkl
 *.wav
-
+.env.yaml
 
 
 # OS generated files #

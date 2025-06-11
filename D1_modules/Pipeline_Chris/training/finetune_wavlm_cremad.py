@@ -18,6 +18,7 @@ import torchaudio
 from torch.utils.data import Dataset
 from transformers import (
     AutoFeatureExtractor,
+    Wav2Vec2ForSequenceClassification,
     HubertForSequenceClassification,
     WavLMForSequenceClassification,
     TrainingArguments,

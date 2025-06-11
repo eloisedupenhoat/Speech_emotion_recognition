@@ -68,7 +68,7 @@ class CremadGCPSpeech(Dataset):
         return {"waveform": wav, "label": label}
 
 # ---- Collate : convertit en numpy AVANT l’extractor ----
-feature_extractor = AutoFeatureExtractor.from_pretrained("facebook/hubert-base-ls960")
+feature_extractor = AutoFeatureExtractor.from_pretrained("facebook/wav2vec2-base")
 
 def collate_fn(batch):
     wavs   = [item["waveform"].numpy() for item in batch]  # <- conversion
@@ -84,12 +84,11 @@ def collate_fn(batch):
     return feats
 
 # ---- Modèle ----
-model = HubertForSequenceClassification.from_pretrained(
-    "facebook/hubert-base-ls960",
+model = Wav2Vec2ForSequenceClassification.from_pretrained(
+    "facebook/wav2vec2-base",
     num_labels=NUM_LABELS,
     problem_type="single_label_classification",
 )
-
 
 # ---- Trainer ----
 train_ds = CremadGCPSpeech(CSV_PATH, BUCKET_AUDIO, SAMPLE_RATE)

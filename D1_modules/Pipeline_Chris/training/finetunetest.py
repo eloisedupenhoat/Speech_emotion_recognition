@@ -23,7 +23,7 @@ GCP_PROJECT   = "speech-emotion-1976"
 BUCKET_AUDIO  = "speech-emotion-bucket/CremaD_Raw"
 CSV_PATH      = Path("D1_modules/Pipeline_Chris/data/cremad_labels.csv")
 OUTPUT_DIR    = Path("./wav2vec2_cremad_finetuned")
-SAMPLE_RATE   = 1000
+SAMPLE_RATE   = 16000
 NUM_LABELS    = 6
 EPOCHS        = 5
 BATCH_SIZE    = 8
@@ -33,7 +33,7 @@ LR            = 2e-5
 fs = gcsfs.GCSFileSystem(project=GCP_PROJECT)
 
 class CremadGCPSpeech(Dataset):
-    def __init__(self, df, bucket: str, sample_rate: int = 1000):
+    def __init__(self, df, bucket: str, sample_rate: int = 16000):
         self.meta = df.reset_index(drop=True)
         self.bucket = bucket.rstrip("/")
         self.sample_rate = sample_rate

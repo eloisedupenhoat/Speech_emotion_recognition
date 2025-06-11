@@ -107,14 +107,21 @@ async def predict(my_file: UploadFile = File(...)):
 
     # X and y
     X = np.expand_dims(img_array, axis=0)
-    emotion_code = emotion(my_file.filename)
+    # emotion_code = emotion(my_file.filename)
     #y_true = to_categorical([emotion_code - 1], num_classes=8)
     y_pred = app.state.model.predict(X)
 
-    # Answer
-    max_indices = np.argmax(y_pred, axis=1)
-    emotion_code_pred = max_indices[0] + 1
-    emotion_pred_written = decodeur_emotion(emotion_code_pred)
-    emotion_true_written = decodeur_emotion(emotion_code)
+    # Answer: full probability distribution
+    y_pred = y_pred[0]  # shape: (8,)
+    emotion_probs = {
+        decodeur_emotion(i + 1): float(prob)
+        for i, prob in enumerate(y_pred)
+    }
 
-    return {"emotion": emotion_pred_written, "true_emotion":emotion_true_written}
+    # Sort descending if desired
+    emotion_probs = dict(sorted(emotion_probs.items(), key=lambda item: item[1], reverse=True))
+
+    return {
+        "predicted_emotion": max(emotion_probs, key=emotion_probs.get),
+        "probabilities": emotion_probs
+    }

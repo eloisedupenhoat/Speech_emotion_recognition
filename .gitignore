@@ -13,6 +13,9 @@ notebooks/
 # Files
 .python-version
 .env
+models/
+load_raw_data.pkl
+*.wav
 
 
 

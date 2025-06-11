@@ -34,8 +34,8 @@ CSV_PATH      = Path(
 OUTPUT_DIR    = Path("./wavlm_cremad_finetuned")
 SAMPLE_RATE   = 16_000
 NUM_LABELS    = 6
-EPOCHS        = 50
-BATCH_SIZE    = 32
+EPOCHS        = 5
+BATCH_SIZE    = 8
 LR            = 2e-5
 # ===============================
 
@@ -47,7 +47,7 @@ fs = gcsfs.GCSFileSystem(project=GCP_PROJECT)
 # ---- Dataset brut ----
 class CremadGCPSpeech(Dataset):
     def __init__(self, csv_path: Path, bucket: str, sample_rate: int = 16000):
-        self.meta        = pd.read_csv(csv_path)
+        self.meta        = pd.read_csv(csv_path).sample(n=1000, random_state=42).reset_index(drop=True)
         self.bucket      = bucket.rstrip("/")
         self.sample_rate = sample_rate
 

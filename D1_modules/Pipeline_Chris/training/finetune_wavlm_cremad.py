@@ -18,6 +18,7 @@ import torchaudio
 from torch.utils.data import Dataset
 from transformers import (
     AutoFeatureExtractor,
+    HubertForSequenceClassification,
     WavLMForSequenceClassification,
     TrainingArguments,
     Trainer,
@@ -33,7 +34,7 @@ OUTPUT_DIR    = Path("./wavlm_cremad_finetuned")
 SAMPLE_RATE   = 16_000
 NUM_LABELS    = 6
 EPOCHS        = 50
-BATCH_SIZE    = 64
+BATCH_SIZE    = 32
 LR            = 2e-5
 # ===============================
 
@@ -67,7 +68,7 @@ class CremadGCPSpeech(Dataset):
         return {"waveform": wav, "label": label}
 
 # ---- Collate : convertit en numpy AVANT l’extractor ----
-feature_extractor = AutoFeatureExtractor.from_pretrained("microsoft/wavlm-base")
+feature_extractor = AutoFeatureExtractor.from_pretrained("facebook/hubert-base-ls960")
 
 def collate_fn(batch):
     wavs   = [item["waveform"].numpy() for item in batch]  # <- conversion
@@ -83,11 +84,12 @@ def collate_fn(batch):
     return feats
 
 # ---- Modèle ----
-model = WavLMForSequenceClassification.from_pretrained(
-    "microsoft/wavlm-base",
+model = HubertForSequenceClassification.from_pretrained(
+    "facebook/hubert-base-ls960",
     num_labels=NUM_LABELS,
     problem_type="single_label_classification",
 )
+
 
 # ---- Trainer ----
 train_ds = CremadGCPSpeech(CSV_PATH, BUCKET_AUDIO, SAMPLE_RATE)

@@ -26,7 +26,7 @@ from transformers import (
 
 # ========= PARAMÈTRES =========
 GCP_PROJECT   = "speech-emotion-1976"
-BUCKET_AUDIO  = "speech-emotion-bucket/Raw/crema-d/AudioWAV"
+BUCKET_AUDIO  = "speech-emotion-bucket/CremaD_Raw"
 CSV_PATH      = Path(
     "D1_modules/Pipeline_Chris/data/cremad_labels.csv"
 )
